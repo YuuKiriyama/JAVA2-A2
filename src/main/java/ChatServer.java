@@ -75,8 +75,9 @@ public class ChatServer {
                 //找到了创建过的room
                 r.messages.add(user + ":" + roomInfo_messages[1]);
                 for (ClientThread c : r.members) {
-                    if (clients.contains(c))
+                    if (clients.contains(c)) {
                         c.sendMessage("Room:" + r.getRoomInfo());
+                    }
                 }
                 return;
             }
@@ -106,8 +107,9 @@ public class ChatServer {
             if (r.roomName.equals(roomName)) {
                 //找到了创建过的room
                 for (ClientThread c : r.members) {
-                    if (c.getClientName().equals(user))
+                    if (c.getClientName().equals(user)) {
                         c.sendMessage("Room:" + r.getRoomInfo());
+                    }
                 }
                 return;
             }
@@ -176,11 +178,14 @@ class ClientThread extends Thread {
                     if (user_message[1].startsWith("Send to:")) {
                         server.sendtoRoom(user_message[1].substring(8), user_message[0]);
                     } else if (user_message[1].startsWith("Broadcast:")) {
-                        server.broadcast("Broadcast:" + user_message[0] + ":" + user_message[1].substring(10), this);
+                        server.broadcast("Broadcast:" + user_message[0] + ":"
+                                + user_message[1].substring(10), this);
                     } else if (user_message[1].startsWith("Find:")) {
                         server.findRoom(user_message[1].substring(5), user_message[0]);
                     }
-                } else throw new RuntimeException();
+                } else {
+                    throw new RuntimeException();
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -219,7 +224,9 @@ class ClientThread extends Thread {
                 return "";
             }
             return new String(buffer, 0, len).trim();
-        } else return "";
+        } else {
+            return "";
+        }
 
     }
 
@@ -248,7 +255,9 @@ class Room {
         if (messages.size() > 0) {
             String output = out.substring(0, out.length() - 1);
             return output;
-        } else return "";
+        } else {
+            return "";
+        }
     }
 
     public String getRoomMembers() {
@@ -259,6 +268,8 @@ class Room {
         if (messages.size() > 0) {
             String output = out.substring(0, out.length() - 1);
             return output;
-        } else return "";
+        } else {
+            return "";
+        }
     }
 }

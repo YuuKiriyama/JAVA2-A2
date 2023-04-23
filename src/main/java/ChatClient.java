@@ -1,3 +1,7 @@
+import java.io.*;
+import java.net.Socket;
+import java.net.SocketException;
+
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -14,8 +18,6 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-import java.io.*;
-import java.net.Socket;
 
 public class ChatClient extends Application {
 
@@ -26,13 +28,6 @@ public class ChatClient extends Application {
     private TextArea messageArea;
     private TextArea messageInput;
     private Button sendButton;
-
-    private TextArea groupMessages;
-    private ScrollPane groupSP;
-    private TextArea groupmessageInput;
-    private Button groupsendButton;
-
-    private Stage createNewRoomStage;
 
     public void start(Stage primaryStage) throws Exception {
         // 建立socket连接
@@ -109,7 +104,7 @@ public class ChatClient extends Application {
                     } else if (message.startsWith("ServerHint:")) {
                         Platform.runLater(() -> {
                             messageArea.appendText(message.substring(11));
-                            primaryStage.setTitle("Chat Client: "+name);
+                            primaryStage.setTitle("Chat Client: " + name);
                         });
                         if (message.endsWith("!\n")) {
                             name = message.substring(37, message.length() - 2);
