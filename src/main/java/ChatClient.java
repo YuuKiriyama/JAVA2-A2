@@ -19,7 +19,7 @@ import java.net.Socket;
 
 public class ChatClient extends Application {
 
-    public String name;
+    public String name = "";
     private Socket socket;
     private OutputStream outputStream;
     private InputStream inputStream;
@@ -42,52 +42,6 @@ public class ChatClient extends Application {
 
         // 创建界面
         BorderPane root = new BorderPane();
-        // 创建菜单栏
-        MenuBar menuBar = new MenuBar();
-        root.setTop(menuBar);
-
-        // 创建File菜单
-        Menu fileMenu = new Menu("New Chat");
-
-        // 创建一个新的场景
-        Scene createNewRoom = new Scene(new VBox(), 600, 100);
-
-        // 在VBox中添加一个Label和StackPane
-        Label label = new Label("First enter the room name, then enter the members you want to add, split the items by space:");
-        StackPane stackPane = new StackPane();
-        VBox.setMargin(label, new Insets(10, 0, 0, 0));
-        VBox.setVgrow(stackPane, Priority.ALWAYS);
-        VBox rootVbox = (VBox) createNewRoom.getRoot();
-        rootVbox.getChildren().addAll(label, stackPane);
-
-        // 创建New菜单项并添加到File菜单中
-        MenuItem privateChat = new MenuItem("Private Chat");
-        fileMenu.getItems().add(privateChat);
-        privateChat.setOnAction(event -> {
-            createNewRoomStage = new Stage();
-            createNewRoomStage.setScene(createNewRoom);
-            createNewRoomStage.show();
-        });
-
-        // 在场景中添加一个文本输入框和一个按钮
-        TextField memberlist = new TextField();
-        Button submit = new Button("Submit");
-        VBox vBox = (VBox) createNewRoom.getRoot();
-        vBox.getChildren().addAll(memberlist, submit);
-        submit.setOnAction(event -> {
-            String members = memberlist.getText();
-            if (!members.isEmpty()) {
-                sendRoomCreation(members);
-                createNewRoomStage.close();
-            }
-        });
-
-
-        // 创建Open菜单项并添加到File菜单中
-        MenuItem groupChat = new MenuItem("Group Chat");
-        fileMenu.getItems().add(groupChat);
-        // 将File菜单添加到菜单栏中
-        menuBar.getMenus().add(fileMenu);
 
 
         //创建一个SplitPane并添加到左边
@@ -103,7 +57,7 @@ public class ChatClient extends Application {
         //添加用户列表到leftBox中
         Label usersLabel = new Label("Online Users:");
         ListView<String> usersList = new ListView<>();
-        ObservableList<String> users = FXCollections.observableArrayList("User 1", "User 2", "User 3");
+        ObservableList<String> users = FXCollections.observableArrayList("");
         usersList.setItems(users);
         leftBox.getChildren().addAll(usersLabel, usersList);
 
@@ -146,10 +100,17 @@ public class ChatClient extends Application {
                         break;
                     }
                     String message = new String(buffer, 0, len);
-                    if (message.startsWith("MESSAGE:")) {
-                        Platform.runLater(() -> messageArea.appendText(message.substring(8)));
+                    if (!message.startsWith("USERLIST:"))
+                        System.out.println("client received:" + message);
+
+
+                    if (message.startsWith("Broadcast:")) {
+                        Platform.runLater(() -> messageArea.appendText(message.substring(10)));
                     } else if (message.startsWith("ServerHint:")) {
-                        Platform.runLater(() -> messageArea.appendText(message.substring(11)));
+                        Platform.runLater(() -> {
+                            messageArea.appendText(message.substring(11));
+                            primaryStage.setTitle("Chat Client: "+name);
+                        });
                         if (message.endsWith("!\n")) {
                             name = message.substring(37, message.length() - 2);
                         }
@@ -159,58 +120,38 @@ public class ChatClient extends Application {
                             ObservableList<String> userList = FXCollections.observableArrayList(userlist);
                             usersList.setItems(userList);
                         });
-                    } else if (message.startsWith("NewRoomCreated:")) {
-                        String[] roomInfo = message.substring(15).split(" ");
-
+                    } else if (message.startsWith("Room:")) {
+                        String[] members_message = new String[2];
+                        String received_message = message.substring(5);
+                        for (int i = 0; i < received_message.length(); i++) {
+                            if (received_message.charAt(i) == '/') {
+                                members_message[0] = received_message.substring(0, i);
+                                members_message[1] = received_message.substring(i + 1);
+                            }
+                        }
+                        StringBuilder members = new StringBuilder();
+                        String[] mem = members_message[0].split(" ");
+                        for (int i = 1; i < mem.length; i++) {
+                            members.append(mem[i]).append(",");
+                        }
+                        String out = members.toString();
+                        String finalOut = out.substring(0, out.length() - 1);
                         Platform.runLater(() -> {
-                            Stage NewRoomStage = new Stage();
-                            NewRoomStage.setTitle(roomInfo[0]);
-                            VBox grouproot = new VBox();
-                            // 创建一个新的场景
-                            Scene NewRoomScene = new Scene(grouproot, 500, 500);
-                            groupMessages = new TextArea();
-                            groupMessages.setEditable(false);
-                            groupSP = new ScrollPane();
-                            groupSP.setContent(groupMessages);
-                            groupSP.setFitToWidth(true);
-                            groupSP.setPrefViewportHeight(400);
-                            grouproot.getChildren().add(groupSP);
-
-                            VBox groupinputBox = new VBox();
-                            groupinputBox.setPadding(new Insets(10));
-                            groupinputBox.setSpacing(10);
-                            groupmessageInput = new TextArea();
-                            groupmessageInput.setWrapText(true); // 开启自动换行
-                            groupmessageInput.setEditable(true);
-                            groupmessageInput.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
-                                if (event.getCode() == KeyCode.ENTER && event.isShiftDown()) { // 判断是否按下Shift键
-                                    event.consume(); // 阻止Enter键的默认行为（即换行）
-                                    groupsendMessage(groupmessageInput.getText(), roomInfo[0]); // 发送消息
-                                }
-                            });
-                            groupsendButton = new Button("Send");
-                            groupsendButton.setOnAction(event -> {
-                                groupsendMessage(groupmessageInput.getText(), roomInfo[0]);
-                            });
-                            groupinputBox.getChildren().addAll(groupmessageInput, groupsendButton);
-
-                            grouproot.getChildren().add(groupinputBox);
-
-                            NewRoomStage.setScene(NewRoomScene);
-                            NewRoomStage.show();
-
-                            startGroupChatThread(socket, roomInfo[0], groupMessages, groupsendButton, groupmessageInput);
+                            messageArea.setText("");
+                            messageArea.appendText("Room: " + mem[0] + "\nMembers:" + finalOut + "\n" + members_message[1]);
                         });
-
-
                     }
 
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                if (socket != null && !socket.isClosed()) {
+                    e.printStackTrace();
+                }
             } finally {
                 try {
-                    socket.close();
+                    if (socket != null && !socket.isClosed()) {
+                        socket.close();
+                    }
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -227,7 +168,6 @@ public class ChatClient extends Application {
 
         // 显示界面
         primaryStage.setScene(new Scene(root, 600, 500));
-        primaryStage.setTitle("Chat Client");
         primaryStage.show();
     }
 
@@ -235,7 +175,8 @@ public class ChatClient extends Application {
         String message = messageInput.getText().trim();
         if (!message.isEmpty()) {
             try {
-                outputStream.write(("MESSAGE:" + message + "\n").getBytes());
+                System.out.println("client sent:" + (name + ":" + message + "\n"));
+                outputStream.write((name + ":" + message + "\n").getBytes());
                 outputStream.flush();
                 messageInput.setText("");
             } catch (IOException e) {
@@ -243,66 +184,6 @@ public class ChatClient extends Application {
             }
         }
     }
-
-    private void groupsendMessage(String message, String group) {
-        if (!message.isEmpty()) {
-
-            try {
-                outputStream.write(("GROUPMESSAGE:" + group + "splitcode#" + name + ":" + message + "\n").getBytes());
-                outputStream.flush();
-                groupmessageInput.setText("");
-                System.out.printf("message %s sent to group %s\n", message, group);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    private void sendRoomCreation(String members) {
-        try {
-            outputStream.write(("NewRoom:" + members + "\n").getBytes());
-            outputStream.flush();
-            messageInput.setText("");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void startGroupChatThread(Socket socket, String roomName, TextArea groupMessages, Button groupSendButton, TextArea groupMessageInput) {
-        Thread receiveThread = new Thread(() -> {
-            try {
-                byte[] buffer = new byte[1024];
-                while (true) {
-                    int len = inputStream.read(buffer);
-                    if (len == -1) {
-                        break;
-                    }
-                    String message = new String(buffer, 0, len);
-                    if (message.startsWith("GROUP:")) {
-                        Platform.runLater(() -> {
-                            groupMessages.appendText(message.substring(6));
-                        });
-                    }
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            } finally {
-                try {
-                    socket.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                Platform.runLater(() -> {
-                    groupMessages.appendText("Disconnected from server.\n");
-                    groupSendButton.setDisable(true);
-                    groupMessageInput.setDisable(true);
-                });
-            }
-        });
-        receiveThread.setDaemon(true);
-        receiveThread.start();
-    }
-
 
     public void stop() throws Exception {
         super.stop();
